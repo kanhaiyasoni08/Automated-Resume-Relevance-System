@@ -1,18 +1,23 @@
-fastapi==0.111.0
-uvicorn==0.29.0
+# -- Streamlit and Core --
 streamlit==1.35.0
-python-multipart==0.0.9
-pandas==2.2.1
-requests==2.31.0
+python-multipart==0.0.9 # For file uploads
+
+# -- PyTorch (CPU Only) - THIS IS THE MOST IMPORTANT CHANGE --
+--find-links https://download.pytorch.org/whl/cpu/torch_stable.html
+torch==2.3.0+cpu
+
+# -- Document Processing --
 PyPDF2==3.0.1
 python-docx==1.1.2
 pdfminer.six==20231228
+
+# -- LangChain and AI Components --
 langchain==0.2.1
-langchain-core==0.2.3
 langchain-groq==0.1.5
 langchain-chroma==0.1.1
 chromadb==0.5.0
-langgraph==0.0.69
-langchain-community==0.2.1
 sentence-transformers==2.7.0
-torch==2.3.0
+
+# -- Optional Heavy Libraries (Add back ONLY if absolutely necessary) --
+# pandas==1.5.3
+# langgraph==0.0.69
