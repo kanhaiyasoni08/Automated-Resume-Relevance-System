@@ -195,7 +195,8 @@ if 'processing' not in st.session_state:
     st.session_state.processing = False
 
 # API Configuration
-API_BASE = 'https://resume-ranker-504509523991.asia-south1.run.app'
+API_BASE = 'https://trishool-backend-504509523991.asia-south1.run.app'
+# API_BASE = 'http://127.0.0.1:8000'  
 
 def create_circular_progress(score):
     """Create a circular progress indicator using HTML/CSS"""
@@ -209,16 +210,51 @@ def create_circular_progress(score):
         </div>
     """
 
+# def analyze_resumes(job_title, job_description, required_skills, groq_api_key, files, jd_file=None):
+#     """Send resume analysis request to API"""
+#     try:
+#         # Prepare the request files
+#         files_data = []
+#         for file in files:
+#             files_data.append(('files', (file.name, file.getvalue(), file.type)))
+        
+#         if jd_file:
+#             files_data.append(('jd_file', (jd_file.name, jd_file.getvalue(), jd_file.type)))
+
+#         data = {
+#             'job_title': job_title,
+#             'job_description': job_description,
+#             'required_skills': required_skills,
+#             'groq_api_key': groq_api_key
+#         }
+        
+#         response = requests.post(
+#             f"{API_BASE}/rank-resumes",
+#             data=data,
+#             files=files_data,
+#             timeout=120 # Increased timeout for potential PDF processing
+#         )
+        
+#         if response.status_code == 200:
+#             return response.json()
+#         else:
+#             st.error(f"API Error: {response.status_code} - {response.text}")
+#             return None
+            
+#     except Exception as e:
+#         st.error(f"Analysis failed: {str(e)}")
+#         return None
+
 def analyze_resumes(job_title, job_description, required_skills, groq_api_key, files, jd_file=None):
-    """Send resume analysis request to API"""
+    """Send resume analysis request to API (robust to empty/non-JSON responses)."""
     try:
-        # Prepare the request files
+        # Prepare the multipart files payload
         files_data = []
         for file in files:
-            files_data.append(('files', (file.name, file.getvalue(), file.type)))
+            files_data.append(('files', (file.name, file.getvalue(), file.type or 'application/octet-stream')))
         
         if jd_file:
-            files_data.append(('jd_file', (jd_file.name, jd_file.getvalue(), jd_file.type)))
+            files_data.append(('jd_file', (jd_file.name, jd_file.getvalue(), jd_file.type or 'application/pdf')))
 
         data = {
             'job_title': job_title,
@@ -227,22 +263,52 @@ def analyze_resumes(job_title, job_description, required_skills, groq_api_key, f
             'groq_api_key': groq_api_key
         }
         
+        # POST to backend
         response = requests.post(
             f"{API_BASE}/rank-resumes",
             data=data,
             files=files_data,
-            timeout=120 # Increased timeout for potential PDF processing
+            timeout=120
         )
-        
-        if response.status_code == 200:
-            return response.json()
-        else:
-            st.error(f"API Error: {response.status_code} - {response.text}")
+
+        # If backend returned non-2xx, show status + body
+        if not response.ok:
+            # Try to display backend JSON error if present
+            content_type = response.headers.get('Content-Type', '')
+            if 'application/json' in content_type.lower():
+                try:
+                    err = response.json()
+                    st.error(f"API Error: {response.status_code} - {err}")
+                except Exception:
+                    st.error(f"API Error: {response.status_code} - (invalid JSON) {response.text}")
+            else:
+                st.error(f"API Error: {response.status_code} - {response.text}")
             return None
-            
+
+        # For 200 OK, attempt to parse JSON but guard against empty/non-JSON
+        body_text = response.text or ""
+        if not body_text.strip():
+            st.error("API returned empty response body (no JSON). Check backend logs for errors.")
+            return None
+
+        try:
+            return response.json()
+        except ValueError as ve:
+            # JSON decode failed — show raw content to help debugging
+            st.error(f"Failed to parse JSON from API response: {ve}")
+            # show first ~2000 chars of server response so you can inspect (HTML error pages often appear)
+            sample = (body_text[:2000] + '...') if len(body_text) > 2000 else body_text
+            st.write("Raw response from server:")
+            st.code(sample)
+            return None
+
+    except requests.exceptions.RequestException as re:
+        st.error(f"Network/Request error: {re}")
+        return None
     except Exception as e:
         st.error(f"Analysis failed: {str(e)}")
         return None
+
 
 def export_to_csv(results):
     """Export results to CSV"""
@@ -283,7 +349,7 @@ with st.sidebar:
                 <span style='font-size: 24px;'>🚀</span>
             </div>
             <div>
-                <h2 style='margin: 0; color: #e2e8f0;'>AI Resume Screener V3</h2>
+                <h2 style='margin: 0; color: #e2e8f0;'>AI Resume Screener</h2>
                 <p style='margin: 0; color: #94a3b8; font-size: 0.875rem;'>Agentic Candidate Ranking</p>
             </div>
         </div>
@@ -537,3 +603,4 @@ st.markdown("""
         <p>AI Resume Screener V3 • Powered by Advanced NLP & Machine Learning</p>
     </div>
 """, unsafe_allow_html=True)
+
