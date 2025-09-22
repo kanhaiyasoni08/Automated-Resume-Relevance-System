@@ -603,4 +603,3 @@ st.markdown("""
         <p>AI Resume Screener V3 • Powered by Advanced NLP & Machine Learning</p>
     </div>
 """, unsafe_allow_html=True)
-
